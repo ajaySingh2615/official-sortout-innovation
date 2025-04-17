@@ -118,9 +118,92 @@ $rejectedCount = $conn->query("SELECT COUNT(*) as count FROM clients WHERE appro
             background-color: #fee2e2;
             color: #b91c1c;
         }
+        /* Image lightbox styles */
+        .client-image {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .client-image:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .image-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            justify-content: center;
+            align-items: center;
+        }
+        .image-modal.active {
+            display: flex;
+            opacity: 1;
+        }
+        .modal-content {
+            max-width: 90%;
+            max-height: 90%;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            position: relative;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        .image-modal.active .modal-content {
+            transform: scale(1);
+        }
+        .modal-image {
+            max-width: 100%;
+            max-height: 80vh;
+            display: block;
+            border-radius: 4px;
+        }
+        .modal-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            color: #333;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 1001;
+            background: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .modal-close:hover {
+            background-color: #f3f4f6;
+        }
+        .modal-caption {
+            margin-top: 10px;
+            color: #333;
+            text-align: center;
+            padding: 5px;
+            font-weight: 500;
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
+    <!-- Image Modal -->
+    <div id="imageModal" class="image-modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeImageModal()">&times;</span>
+            <img id="modalImage" class="modal-image" src="" alt="Client Image">
+            <div id="modalCaption" class="modal-caption"></div>
+        </div>
+    </div>
+    
     <!-- Top Navigation -->
     <nav class="bg-white shadow-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -230,14 +313,39 @@ $rejectedCount = $conn->query("SELECT COUNT(*) as count FROM clients WHERE appro
                                     <td class="table-cell">
                                         <img src="<?= htmlspecialchars($row['image_url']) ?>" 
                                              alt="Client Image" 
-                                             class="w-12 h-12 rounded-full object-cover">
+                                             class="w-12 h-12 rounded-full object-cover client-image"
+                                             onclick="openImageModal('<?= htmlspecialchars($row['image_url']) ?>', '<?= htmlspecialchars($row['name']) ?>')">
                                     </td>
                                     <td class="table-cell">
                                         <?php if (!empty($row['resume_url'])): ?>
+                                            <?php 
+                                                $file_extension = pathinfo($row['resume_url'], PATHINFO_EXTENSION);
+                                                $icon_class = 'fa-file-pdf';
+                                                $btn_class = 'bg-blue-500 hover:bg-blue-600';
+                                                
+                                                // Assign appropriate icon based on file type
+                                                if (in_array($file_extension, ['doc', 'docx'])) {
+                                                    $icon_class = 'fa-file-word';
+                                                    $btn_class = 'bg-blue-600 hover:bg-blue-700';
+                                                } elseif (in_array($file_extension, ['xls', 'xlsx'])) {
+                                                    $icon_class = 'fa-file-excel';
+                                                    $btn_class = 'bg-green-600 hover:bg-green-700';
+                                                } elseif (in_array($file_extension, ['ppt', 'pptx'])) {
+                                                    $icon_class = 'fa-file-powerpoint';
+                                                    $btn_class = 'bg-red-500 hover:bg-red-600';
+                                                } elseif (in_array($file_extension, ['jpg', 'jpeg', 'png', 'gif'])) {
+                                                    $icon_class = 'fa-file-image';
+                                                    $btn_class = 'bg-purple-500 hover:bg-purple-600';
+                                                } elseif ($file_extension === 'txt') {
+                                                    $icon_class = 'fa-file-alt';
+                                                    $btn_class = 'bg-gray-600 hover:bg-gray-700';
+                                                }
+                                            ?>
                                             <a href="<?= htmlspecialchars('../' . $row['resume_url']) ?>" 
                                                target="_blank"
-                                               class="btn bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
-                                                <i class="fas fa-file-pdf mr-1"></i> View
+                                               class="btn <?= $btn_class ?> text-white px-3 py-1 rounded inline-flex items-center">
+                                                <i class="fas <?= $icon_class ?> mr-1"></i> 
+                                                View <?= strtoupper($file_extension) ?>
                                             </a>
                                         <?php else: ?>
                                             <span class="text-gray-400">No Resume</span>
@@ -326,14 +434,39 @@ $rejectedCount = $conn->query("SELECT COUNT(*) as count FROM clients WHERE appro
                                     <td class="table-cell">
                                         <img src="<?= htmlspecialchars($row['image_url']) ?>" 
                                              alt="Client Image" 
-                                             class="w-12 h-12 rounded-full object-cover">
+                                             class="w-12 h-12 rounded-full object-cover client-image"
+                                             onclick="openImageModal('<?= htmlspecialchars($row['image_url']) ?>', '<?= htmlspecialchars($row['name']) ?>')">
                                     </td>
                                     <td class="table-cell">
                                         <?php if (!empty($row['resume_url'])): ?>
+                                            <?php 
+                                                $file_extension = pathinfo($row['resume_url'], PATHINFO_EXTENSION);
+                                                $icon_class = 'fa-file-pdf';
+                                                $btn_class = 'bg-blue-500 hover:bg-blue-600';
+                                                
+                                                // Assign appropriate icon based on file type
+                                                if (in_array($file_extension, ['doc', 'docx'])) {
+                                                    $icon_class = 'fa-file-word';
+                                                    $btn_class = 'bg-blue-600 hover:bg-blue-700';
+                                                } elseif (in_array($file_extension, ['xls', 'xlsx'])) {
+                                                    $icon_class = 'fa-file-excel';
+                                                    $btn_class = 'bg-green-600 hover:bg-green-700';
+                                                } elseif (in_array($file_extension, ['ppt', 'pptx'])) {
+                                                    $icon_class = 'fa-file-powerpoint';
+                                                    $btn_class = 'bg-red-500 hover:bg-red-600';
+                                                } elseif (in_array($file_extension, ['jpg', 'jpeg', 'png', 'gif'])) {
+                                                    $icon_class = 'fa-file-image';
+                                                    $btn_class = 'bg-purple-500 hover:bg-purple-600';
+                                                } elseif ($file_extension === 'txt') {
+                                                    $icon_class = 'fa-file-alt';
+                                                    $btn_class = 'bg-gray-600 hover:bg-gray-700';
+                                                }
+                                            ?>
                                             <a href="<?= htmlspecialchars('../' . $row['resume_url']) ?>" 
                                                target="_blank"
-                                               class="btn bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
-                                                <i class="fas fa-file-pdf mr-1"></i> View
+                                               class="btn <?= $btn_class ?> text-white px-3 py-1 rounded inline-flex items-center">
+                                                <i class="fas <?= $icon_class ?> mr-1"></i> 
+                                                View <?= strtoupper($file_extension) ?>
                                             </a>
                                         <?php else: ?>
                                             <span class="text-gray-400">No Resume</span>
@@ -474,9 +607,32 @@ $rejectedCount = $conn->query("SELECT COUNT(*) as count FROM clients WHERE appro
                         const resumePath = client.resume_url.startsWith('http') ? 
                             client.resume_url : 
                             '../' + client.resume_url;
+                            
+                        // Determine file type and set appropriate icon
+                        const fileExt = resumePath.split('.').pop().toLowerCase();
+                        let iconClass = 'fa-file-pdf';
+                        let btnClass = 'bg-blue-500 hover:bg-blue-600';
+                        
+                        if (['doc', 'docx'].includes(fileExt)) {
+                            iconClass = 'fa-file-word';
+                            btnClass = 'bg-blue-600 hover:bg-blue-700';
+                        } else if (['xls', 'xlsx'].includes(fileExt)) {
+                            iconClass = 'fa-file-excel';
+                            btnClass = 'bg-green-600 hover:bg-green-700';
+                        } else if (['ppt', 'pptx'].includes(fileExt)) {
+                            iconClass = 'fa-file-powerpoint';
+                            btnClass = 'bg-red-500 hover:bg-red-600';
+                        } else if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExt)) {
+                            iconClass = 'fa-file-image';
+                            btnClass = 'bg-purple-500 hover:bg-purple-600';
+                        } else if (fileExt === 'txt') {
+                            iconClass = 'fa-file-alt';
+                            btnClass = 'bg-gray-600 hover:bg-gray-700';
+                        }
+                        
                         resumeHtml = `
-                            <a href="${resumePath}" target="_blank" class="btn bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
-                                <i class="fas fa-file-pdf mr-1"></i> View
+                            <a href="${resumePath}" target="_blank" class="btn ${btnClass} text-white px-3 py-1 rounded inline-flex items-center">
+                                <i class="fas ${iconClass} mr-1"></i> View ${fileExt.toUpperCase()}
                             </a>
                         `;
                     } else {
@@ -495,7 +651,8 @@ $rejectedCount = $conn->query("SELECT COUNT(*) as count FROM clients WHERE appro
                         <td class="table-cell">${client.language || '-'}</td>
                         <td class="table-cell">${client.professional === 'Employee' ? (client.current_salary || 'N/A') : 'N/A'}</td>
                         <td class="table-cell">
-                            <img src="${imageUrl}" alt="Profile" class="h-12 w-12 rounded-full object-cover">
+                            <img src="${imageUrl}" alt="Profile" class="h-12 w-12 rounded-full object-cover client-image"
+                                 onclick="openImageModal('${imageUrl}', '${client.name}')">
                         </td>
                         <td class="table-cell">${resumeHtml}</td>
                         <td class="table-cell">
@@ -694,6 +851,43 @@ $rejectedCount = $conn->query("SELECT COUNT(*) as count FROM clients WHERE appro
             loadClients('pending');
             loadClients('approved');
         });
+        
+        // Image Modal Functions
+        function openImageModal(imageSrc, clientName) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImage');
+            const modalCaption = document.getElementById('modalCaption');
+            
+            // Format image URL correctly if needed
+            if (!imageSrc.startsWith('http') && !imageSrc.startsWith('../')) {
+                imageSrc = '../' + imageSrc;
+            }
+            
+            modalImg.src = imageSrc;
+            modalCaption.textContent = clientName || 'Client Image';
+            
+            // Show modal with animation
+            modal.classList.add('active');
+            
+            // Close modal when clicking outside image
+            modal.addEventListener('click', function(event) {
+                if (event.target === modal) {
+                    closeImageModal();
+                }
+            });
+            
+            // Close modal on ESC key
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    closeImageModal();
+                }
+            });
+        }
+        
+        function closeImageModal() {
+            const modal = document.getElementById('imageModal');
+            modal.classList.remove('active');
+        }
     </script>
 </body>
 </html>
